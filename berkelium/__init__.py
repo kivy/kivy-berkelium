@@ -24,6 +24,12 @@ For example, if you want to create a Webbrowser widget that load Google::
 
     wb = Webbrowser(url='http://google.fr')
 
+You can change the url later::
+
+    wb.url = 'http://youtube.com/'
+
+API
+---
 '''
 
 __all__ = ('Webbrowser', )
@@ -233,13 +239,17 @@ class Webbrowser(Widget):
         return self._bk
 
     bk = AliasProperty(get_bk, None, bind=('_bk', ))
+    '''
+    Internal object that represent the Berkelium instance. You might need it to
+    control some internal state of berkelium.
+    '''
 
     #
     # Properties
     #
     url = StringProperty(None)
     '''Url of the page, default to None. As soon as you change it, it will be
-    reloaded.
+    reloaded::
 
         wb = Webbrowser()
         wb.url = 'http://kivy.org'
