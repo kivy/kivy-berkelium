@@ -1,0 +1,385 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Berkelium Webbrowser Extension &mdash; Berkelium extension for Kivy v1.0 documentation</title>
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     '1.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="Berkelium extension for Kivy v1.0 documentation" href="#" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="#">Berkelium extension for Kivy v1.0 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <span class="target" id="module-berkelium"></span><div class="section" id="berkelium-webbrowser-extension">
+<h1>Berkelium Webbrowser Extension<a class="headerlink" href="#berkelium-webbrowser-extension" title="Permalink to this headline">¶</a></h1>
+<p>This extension provide a wrapper in Python / Kivy around Berkelium project.
+Berkelium project is a offscreen webbrower based on Chromium. You can check
+more about it at <a class="reference external" href="http://berkelium.org/">http://berkelium.org/</a></p>
+<div class="section" id="about-berkelium">
+<h2>About berkelium<a class="headerlink" href="#about-berkelium" title="Permalink to this headline">¶</a></h2>
+<p>Berkelium is actually patched to be able to load his binary from another
+directory than the current executable in memory (aka Python.)
+The patch is available at
+<a class="reference external" href="https://github.com/tito/berkelium/commit/c407a023f386e05fc873113e65935e2497e0980e">https://github.com/tito/berkelium/commit/c407a023f386e05fc873113e65935e2497e0980e</a></p>
+</div>
+<div class="section" id="usage-of-webbrowser">
+<h2>Usage of Webbrowser<a class="headerlink" href="#usage-of-webbrowser" title="Permalink to this headline">¶</a></h2>
+<p>We not providing a direct access to Berkelium (cpp wrapping in Python is
+complex), but we are providing a Widget that use Berkelium.</p>
+<p>For example, if you want to create a Webbrowser widget that load Google:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">wb</span> <span class="o">=</span> <span class="n">Webbrowser</span><span class="p">(</span><span class="n">url</span><span class="o">=</span><span class="s">&#39;http://google.fr&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>You can change the url later:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">wb</span><span class="o">.</span><span class="n">url</span> <span class="o">=</span> <span class="s">&#39;http://youtube.com/&#39;</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="api">
+<h2>API<a class="headerlink" href="#api" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="berkelium.Webbrowser">
+<em class="property">class </em><tt class="descclassname">berkelium.</tt><tt class="descname">Webbrowser</tt><big>(</big><em>**kwargs</em><big>)</big><a class="headerlink" href="#berkelium.Webbrowser" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">kivy.uix.widget.Widget</span></tt></p>
+<p>Webbrowser class. See module documentation for more information.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name">Events :</th><td class="field-body"><dl class="first last docutils">
+<dt><cite>on_start_loading</cite>: url</dt>
+<dd><p class="first last">Fired when a new page start to load</p>
+</dd>
+<dt><cite>on_load</cite>:</dt>
+<dd><p class="first last">Fired when loading is in progress</p>
+</dd>
+<dt><cite>on_crashed_worker</cite>:</dt>
+<dd><p class="first last">Fired when a worker crash</p>
+</dd>
+<dt><cite>on_crashed_plugin</cite>:</dt>
+<dd><p class="first last">Fired when a plugin crash</p>
+</dd>
+<dt><cite>on_provisional_load_error</cite>: url, error_code, is_main</dt>
+<dd><p class="first last">Fired when we cannot reach the url</p>
+</dd>
+<dt><cite>on_console_message</cite>: message, source_id, line_no</dt>
+<dd><p class="first last">Fired when a new message for console is available</p>
+</dd>
+<dt><cite>on_script_alert</cite>: message, default_value, url, flags, success</dt>
+<dd><p class="first last">Fired when a javascript do a alert() box</p>
+</dd>
+<dt><cite>on_navigation_requested</cite>: url, referrer, is_new_window</dt>
+<dd><p class="first last">Fired when a navigation is requested from a page (popup for example)</p>
+</dd>
+<dt><cite>on_created_window</cite>:</dt>
+<dd><p class="first last">Fired when a new window is created</p>
+</dd>
+<dt><cite>on_widget_created</cite>:</dt>
+<dd><p class="first last">Fired when a new widget is created</p>
+</dd>
+<dt><cite>on_widget_resize</cite>:</dt>
+<dd><p class="first last">Fired when a new widget is resized</p>
+</dd>
+<dt><cite>on_widget_move</cite>:</dt>
+<dd><p class="first last">Fired when a new widget is moving</p>
+</dd>
+<dt><cite>on_paint</cite>:</dt>
+<dd><p class="first last">Fired when the texture is updated</p>
+</dd>
+</dl>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="berkelium.Webbrowser.adjust_zoom">
+<tt class="descname">adjust_zoom</tt><big>(</big><em>mode</em><big>)</big><a class="headerlink" href="#berkelium.Webbrowser.adjust_zoom" title="Permalink to this definition">¶</a></dt>
+<dd><p>Adjust zoom from mode</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="berkelium.Webbrowser.bk">
+<tt class="descname">bk</tt><a class="headerlink" href="#berkelium.Webbrowser.bk" title="Permalink to this definition">¶</a></dt>
+<dd><p>Internal object that represent the Berkelium instance. You might need it to
+control some internal state of berkelium.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="berkelium.Webbrowser.can_go_back">
+<tt class="descname">can_go_back</tt><big>(</big><big>)</big><a class="headerlink" href="#berkelium.Webbrowser.can_go_back" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return True if we can go back (if you can display the back button)</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="berkelium.Webbrowser.can_go_forward">
+<tt class="descname">can_go_forward</tt><big>(</big><big>)</big><a class="headerlink" href="#berkelium.Webbrowser.can_go_forward" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return True if we can go forward (if you can display the forward button)</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="berkelium.Webbrowser.copy">
+<tt class="descname">copy</tt><big>(</big><big>)</big><a class="headerlink" href="#berkelium.Webbrowser.copy" title="Permalink to this definition">¶</a></dt>
+<dd><p>Copy the current selection</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="berkelium.Webbrowser.cut">
+<tt class="descname">cut</tt><big>(</big><big>)</big><a class="headerlink" href="#berkelium.Webbrowser.cut" title="Permalink to this definition">¶</a></dt>
+<dd><p>Cut the current selection</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="berkelium.Webbrowser.focus">
+<tt class="descname">focus</tt><big>(</big><big>)</big><a class="headerlink" href="#berkelium.Webbrowser.focus" title="Permalink to this definition">¶</a></dt>
+<dd><p>Focus the window</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="berkelium.Webbrowser.go_back">
+<tt class="descname">go_back</tt><big>(</big><big>)</big><a class="headerlink" href="#berkelium.Webbrowser.go_back" title="Permalink to this definition">¶</a></dt>
+<dd><p>Go to the previous webpage in the history</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="berkelium.Webbrowser.go_forward">
+<tt class="descname">go_forward</tt><big>(</big><big>)</big><a class="headerlink" href="#berkelium.Webbrowser.go_forward" title="Permalink to this definition">¶</a></dt>
+<dd><p>Go to the next webpage in the history</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="berkelium.Webbrowser.is_loading">
+<tt class="descname">is_loading</tt><a class="headerlink" href="#berkelium.Webbrowser.is_loading" title="Permalink to this definition">¶</a></dt>
+<dd><p>Indicate if the page is currently loading.</p>
+<p><a class="reference internal" href="#berkelium.Webbrowser.is_loading" title="berkelium.Webbrowser.is_loading"><tt class="xref py py-data docutils literal"><span class="pre">is_loading</span></tt></a> is a <tt class="xref py py-class docutils literal"><span class="pre">BooleanProperty</span></tt>, default
+to False, read-only.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="berkelium.Webbrowser.open_filename">
+<tt class="descname">open_filename</tt><big>(</big><em>filename</em><big>)</big><a class="headerlink" href="#berkelium.Webbrowser.open_filename" title="Permalink to this definition">¶</a></dt>
+<dd><p>Open a HTML from the disk (filename can be relative or absolute.)</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="berkelium.Webbrowser.open_url">
+<tt class="descname">open_url</tt><big>(</big><em>url</em><big>)</big><a class="headerlink" href="#berkelium.Webbrowser.open_url" title="Permalink to this definition">¶</a></dt>
+<dd><p>Open an URL (starting with <a class="reference external" href="http://">http://</a>)</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="berkelium.Webbrowser.paste">
+<tt class="descname">paste</tt><big>(</big><big>)</big><a class="headerlink" href="#berkelium.Webbrowser.paste" title="Permalink to this definition">¶</a></dt>
+<dd><p>Paste the current selection</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="berkelium.Webbrowser.redo">
+<tt class="descname">redo</tt><big>(</big><big>)</big><a class="headerlink" href="#berkelium.Webbrowser.redo" title="Permalink to this definition">¶</a></dt>
+<dd><p>Redo last action (in text input)</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="berkelium.Webbrowser.refresh">
+<tt class="descname">refresh</tt><big>(</big><big>)</big><a class="headerlink" href="#berkelium.Webbrowser.refresh" title="Permalink to this definition">¶</a></dt>
+<dd><p>Refresh the current page</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="berkelium.Webbrowser.select_all">
+<tt class="descname">select_all</tt><big>(</big><big>)</big><a class="headerlink" href="#berkelium.Webbrowser.select_all" title="Permalink to this definition">¶</a></dt>
+<dd><p>Select all the text</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="berkelium.Webbrowser.status">
+<tt class="descname">status</tt><a class="headerlink" href="#berkelium.Webbrowser.status" title="Permalink to this definition">¶</a></dt>
+<dd><p>Status of the internal browser. The availables options are :</p>
+<blockquote>
+<ul class="simple">
+<li>ok: everything is ok</li>
+<li>crashed: the internal module have crashed, you must reload it.</li>
+<li>unresponsive: the internal module is unresponsive, you may reload it.</li>
+</ul>
+</blockquote>
+<p><a class="reference internal" href="#berkelium.Webbrowser.status" title="berkelium.Webbrowser.status"><tt class="xref py py-data docutils literal"><span class="pre">status</span></tt></a> is a <cite>~kivy.properties.StringProperty</cite>, default to &#8216;ok&#8217;,
+read-only.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="berkelium.Webbrowser.stop">
+<tt class="descname">stop</tt><big>(</big><big>)</big><a class="headerlink" href="#berkelium.Webbrowser.stop" title="Permalink to this definition">¶</a></dt>
+<dd><p>Stop the loading of the page</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="berkelium.Webbrowser.texture">
+<tt class="descname">texture</tt><a class="headerlink" href="#berkelium.Webbrowser.texture" title="Permalink to this definition">¶</a></dt>
+<dd><p>Represent the texture that contain the webpage rendered
+Depending of the texture creation, the value will be a
+<tt class="xref py py-class docutils literal"><span class="pre">Texture</span></tt> or
+<tt class="xref py py-class docutils literal"><span class="pre">TextureRegion</span></tt> object.</p>
+<p><a class="reference internal" href="#berkelium.Webbrowser.texture" title="berkelium.Webbrowser.texture"><tt class="xref py py-data docutils literal"><span class="pre">texture</span></tt></a> is a <tt class="xref py py-class docutils literal"><span class="pre">ObjectProperty</span></tt>, default to
+None.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="berkelium.Webbrowser.texture_size">
+<tt class="descname">texture_size</tt><a class="headerlink" href="#berkelium.Webbrowser.texture_size" title="Permalink to this definition">¶</a></dt>
+<dd><p>Texture size of the image.</p>
+<div class="admonition warning">
+<p class="first admonition-title">Warning</p>
+<p class="last">The texture size is set after the texture property. So if you listen on
+the change to <a class="reference internal" href="#berkelium.Webbrowser.texture" title="berkelium.Webbrowser.texture"><tt class="xref py py-data docutils literal"><span class="pre">texture</span></tt></a>, the property texture_size will be not yet
+updated. Use self.texture.size instead.</p>
+</div>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="berkelium.Webbrowser.title">
+<tt class="descname">title</tt><a class="headerlink" href="#berkelium.Webbrowser.title" title="Permalink to this definition">¶</a></dt>
+<dd><p>Title of the current webpage.</p>
+<p><a class="reference internal" href="#berkelium.Webbrowser.title" title="berkelium.Webbrowser.title"><tt class="xref py py-data docutils literal"><span class="pre">title</span></tt></a> is a <tt class="xref py py-class docutils literal"><span class="pre">StringProperty</span></tt>, default
+to &#8216;&#8217;, read-only.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="berkelium.Webbrowser.tooltip">
+<tt class="descname">tooltip</tt><a class="headerlink" href="#berkelium.Webbrowser.tooltip" title="Permalink to this definition">¶</a></dt>
+<dd><p>Current tooltip to show under the cursor.</p>
+<p><a class="reference internal" href="#berkelium.Webbrowser.tooltip" title="berkelium.Webbrowser.tooltip"><tt class="xref py py-data docutils literal"><span class="pre">tooltip</span></tt></a> is a <tt class="xref py py-class docutils literal"><span class="pre">StringProperty</span></tt>, default to
+&#8216;&#8217;, read-only</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="berkelium.Webbrowser.transparency">
+<tt class="descname">transparency</tt><a class="headerlink" href="#berkelium.Webbrowser.transparency" title="Permalink to this definition">¶</a></dt>
+<dd><p>Indicate if the webpage should have a transparent background or not. Be
+careful, this will work only if your webpage don&#8217;t set a big div with a
+background color. You can use it for rendering custom html like:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s">&#39;bleh.html&#39;</span><span class="p">,</span> <span class="s">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fd</span><span class="p">:</span>
+    <span class="n">fd</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&#39;&lt;h1 style=&quot;color: #ff0000&quot;&gt;Hello world&lt;/h1&gt;&#39;</span><span class="p">)</span>
+<span class="n">wb</span> <span class="o">=</span> <span class="n">Webbrowser</span><span class="p">(</span><span class="n">transparency</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="mi">150</span><span class="p">,</span> <span class="mi">50</span><span class="p">))</span>
+<span class="n">wb</span><span class="o">.</span><span class="n">open_filename</span><span class="p">(</span><span class="s">&#39;bleh.html&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>This will result to show a big Hello world in red.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="berkelium.Webbrowser.undo">
+<tt class="descname">undo</tt><big>(</big><big>)</big><a class="headerlink" href="#berkelium.Webbrowser.undo" title="Permalink to this definition">¶</a></dt>
+<dd><p>Undo last action (in text input)</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="berkelium.Webbrowser.unfocus">
+<tt class="descname">unfocus</tt><big>(</big><big>)</big><a class="headerlink" href="#berkelium.Webbrowser.unfocus" title="Permalink to this definition">¶</a></dt>
+<dd><p>Unfocus the window</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="berkelium.Webbrowser.url">
+<tt class="descname">url</tt><a class="headerlink" href="#berkelium.Webbrowser.url" title="Permalink to this definition">¶</a></dt>
+<dd><p>Url of the page, default to None. As soon as you change it, it will be
+reloaded:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">wb</span> <span class="o">=</span> <span class="n">Webbrowser</span><span class="p">()</span>
+<span class="n">wb</span><span class="o">.</span><span class="n">url</span> <span class="o">=</span> <span class="s">&#39;http://kivy.org&#39;</span>
+</pre></div>
+</div>
+<p><a class="reference internal" href="#berkelium.Webbrowser.url" title="berkelium.Webbrowser.url"><tt class="xref py py-data docutils literal"><span class="pre">url</span></tt></a> is a <tt class="xref py py-class docutils literal"><span class="pre">StringProperty</span></tt>, default to None.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="#">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Berkelium Webbrowser Extension</a><ul>
+<li><a class="reference internal" href="#about-berkelium">About berkelium</a></li>
+<li><a class="reference internal" href="#usage-of-webbrowser">Usage of Webbrowser</a></li>
+<li><a class="reference internal" href="#api">API</a></li>
+</ul>
+</li>
+</ul>
+
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/index.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="#">Berkelium extension for Kivy v1.0 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2011, Mathieu Virbel.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.0.1.
+    </div>
+  </body>
+</html>
