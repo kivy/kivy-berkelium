@@ -40,6 +40,7 @@ cdef extern from "berkelium/Context.hpp":
 
 cdef extern from "berkelium/Window.hpp":
     ctypedef char* const_wchar_ptr "const wchar_t*"
+    ctypedef char* wchar_t "wchar_t*"
     cdef cppclass Window "Berkelium::Window":
         #int is_crashed()
         void ShowRepostFormWarningDialog()
@@ -168,6 +169,7 @@ cdef int mapOnPaintToTexture(
     cdef object tmp
 
     tex.bind()
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1)
 
     cdef int kBytesPerPixel = 4
     cdef object py_bytes
@@ -323,6 +325,16 @@ cdef class WindowDelegate:
         self.fbo = Fbo(size=(self.width, self.height), colorfmt='rgba')
         self.fbo.texture.flip_vertical()
         self.impl.init(width, height, usetrans)
+
+    property modifiers:
+        def __get__(self):
+            return {
+                'shift': 1 << 0,
+                'ctrl': 1 << 1,
+                'alt': 1 << 2,
+                'meta': 1 << 3
+            }
+
 
     #
     # Default implementation handlers to translate c++ -> Python
@@ -544,8 +556,13 @@ cdef class WindowDelegate:
     def mouseWheel(self, int xScroll, int yScroll):
         self.impl.getWindow().mouseWheel(xScroll, yScroll)
 
-    def textEvent(self, bytes evt):
-        self.impl.getWindow().textEvent(<const_wchar_ptr><char *>evt, <size_t>len(evt))
+    def textEvent(self, evt):
+        cdef wchar_t *text = <wchar_t *>malloc(sizeof(wchar_t) * len(evt))
+        if text == NULL:
+            return
+        for index, c in enumerate(evt):
+            text[index] = <wchar_t><int>int(ord(c))
+        self.impl.getWindow().textEvent(<const_wchar_ptr>text, len(evt))
 
     def keyEvent(self, int pressed, int mods, int vk_code, int scancode):
         self.impl.getWindow().keyEvent(pressed, mods, vk_code, scancode)

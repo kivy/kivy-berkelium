@@ -327,6 +327,7 @@ class Webbrowser(Widget):
 
         # Before doing anything, ensure the windows exist.
         EventLoop.ensure_window()
+        EventLoop.window.bind(on_keyboard=self.on_window_keyboard)
 
         self._bk = _WindowDelegate(self, self.width, self.height,
                                    self.transparency)
@@ -352,6 +353,20 @@ class Webbrowser(Widget):
             self._g_rect.tex_coords = (0, 1, 1, 1, 1, 0, 0, 0)
         _install_berkelium_update(self)
 
+    def on_window_keyboard(self, instance, key, scancode, text, modifiers):
+        # handle first special keys
+        if key in map(ord, ('\b', '\r', '\n', ' ')) or \
+            ord('a') >= key <= ord('z') or \
+            ord('A') >= key <= ord('Z'):
+            vk_code = ord(chr(key).lower())
+            vwmods = 0
+            for modifier in modifiers:
+                vwmods |= self._bk.modifiers.get(modifier, 0)
+            self._bk.keyEvent(1, vwmods, vk_code, 0)
+
+        if text is not None:
+            self._bk.textEvent(text)
+
     def on_size(self, instance, value):
         w, h = map(int, value)
         self._bk.resize(w, h)
@@ -365,6 +380,7 @@ class Webbrowser(Widget):
         self._bk.setTransparent(value)
 
     def on_touch_down(self, touch):
+        self.focus()
         self._mouse_move(touch)
         self._bk.mouseButton(0, 1)
 
@@ -403,12 +419,14 @@ class Webbrowser(Widget):
     def focus(self):
         '''Focus the window
         '''
+        self._have_focus = 1
         self._bk.focus()
 
     def unfocus(self):
         '''Unfocus the window
         '''
         self._bk.unfocus()
+        self._have_focus = 0
 
     def adjust_zoom(self, mode):
         '''Adjust zoom from mode
