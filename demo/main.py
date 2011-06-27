@@ -11,7 +11,7 @@ from kivy.uix.floatlayout import FloatLayout
 from kivy.app import App
 
 from kivy.ext import load
-berkelium = load('berkelium', (1, 0))
+berkelium = load('berkelium', (1, 1))
 
 urls = (
     'http://kivy.org',
