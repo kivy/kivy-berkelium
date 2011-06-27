@@ -375,6 +375,13 @@ class Webbrowser(Widget):
         self._g_rect.texture = self._bk.texture
         self._g_rect.tex_coords = (0, 1, 1, 1, 1, 0, 0, 0)
         self._g_rect.size = w, h
+        self._g_rect.pos = self.pos
+
+    def on_pos(self, instance, value):
+        x, y = map(int, value)
+        if not hasattr(self, '_g_rect'):
+            return
+        self._g_rect.pos = self.pos
 
     def on_transparency(self, instance, value):
         self._bk.setTransparent(value)
