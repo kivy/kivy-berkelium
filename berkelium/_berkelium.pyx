@@ -71,9 +71,23 @@ cdef extern from "berkelium/Window.hpp":
 
     cdef Window *Window_create "Berkelium::Window::create"(Context *)
 
+cdef extern from "berkelium/Widget.hpp":
+    ctypedef object _Rect "Rect"
+    cdef cppclass Widget "Berkelium::Widget":
+        int getId()
+        void focus()
+        void unfocus()
+        bool hasFocus()
+        void mouseMoved(int xPos, int yPos)
+        void mouseButton(unsigned int buttonID, bool down)
+        void mouseWheel(int xScroll, int yScroll)
+        void textEvent(const_wchar_ptr evt, size_t evtLength)
+        void keyEvent(bool pressed, int mods, int vk_code, int scancode)
+        _Rect getRect()
+        void setPos(int x, int y)
+
+
 cdef extern from "berkelium_wrapper.h":
-    cdef cppclass Widget:
-        pass
     cdef cppclass Rect:
         int mLeft
         int mTop
@@ -108,6 +122,8 @@ cdef extern from "berkelium_wrapper.h":
     ctypedef void (*tp_onWidgetCreated)(object obj, Window *win, Widget *newWidget, int zIndex)
     ctypedef void (*tp_onWidgetResize)(object obj, Window *win, Widget *wid, int newWidth, int newHeight)
     ctypedef void (*tp_onWidgetMove)(object obj, Window *win, Widget *wid, int newX, int newY)
+    ctypedef void (*tp_onWidgetPaint)(object obj, Window *win, Widget *wid, unsigned char * bitmap_in,  Rect &bitmap_rect, size_t num_copy_rects, Rect *copy_rects, int dx,  int dy,  Rect &scroll_rect)
+    ctypedef void (*tp_onWidgetDestroyed)(object obj, Window *win, Widget *wid)
     ctypedef void (*tp_onPaint)(object obj, Window *wini, unsigned char *bitmap_in, Rect &bitmap_rect, size_t num_copy_rects, Rect *copy_rects, int dx, int dy, Rect &scroll_rect)
 
     cdef cppclass CyWindowDelegate:
@@ -133,7 +149,9 @@ cdef extern from "berkelium_wrapper.h":
         tp_onWidgetCreated			impl_onWidgetCreated
         tp_onWidgetResize			impl_onWidgetResize
         tp_onWidgetMove				impl_onWidgetMove
-        tp_onPaint                  impl_onPaint
+        tp_onWidgetPaint			impl_onWidgetPaint
+        tp_onWidgetDestroyed			impl_onWidgetDestroyed
+        tp_onPaint				impl_onPaint
 
 
 def init(bytes berkelium_path):
@@ -155,6 +173,7 @@ def set_debug(activate):
 cdef GL_BGRA = 0x80E1
 cdef int mapOnPaintToTexture(
     Window *wini,
+    #object wini,
     unsigned char* bitmap_in, Rect& bitmap_rect,
     size_t num_copy_rects, Rect *copy_rects,
     int dx, int dy,
@@ -284,6 +303,70 @@ cdef int mapOnPaintToTexture(
 
     return 1
 
+cdef class My_Widget:
+    cdef Widget *wid
+    cdef public int top
+    cdef public int left
+    cdef public int width
+    cdef public int height
+    cdef public char *scroll_buffer
+    cdef public object fbo
+
+    def __cinit__(self, *largs):
+        self.wid = NULL
+
+    def __init__(self, **kwargs):
+        pass
+
+    def get_id(self):
+        return self.wid.getId()
+
+    def focus(self):
+        self.wid.focus()
+
+    def unfocus(self):
+        self.wid.unfocus()
+
+    def mouseMoved(self, xPos, yPos):
+        self.wid.mouseMoved(xPos, yPos)
+
+    def mouseButton(self, buttonID, down):
+        self.wid.mouseButton(buttonID, down)
+
+    def textEvent(self, evt):
+        cdef wchar_t *text = <wchar_t *>malloc(sizeof(wchar_t) * len(evt))
+        if text == NULL:
+            return
+        for index, c in enumerate(evt):
+            text[index] = <wchar_t><int>int(ord(c))
+        self.wid.textEvent(<wchar_t>text, len(evt))
+
+
+    def keyEvent(self, pressed, mods, vk_code, scancode):
+        self.wid.keyEvent(pressed, mods, vk_code, scancode)
+
+    def widgetCreated(self):
+        self.fbo = None
+
+    cdef void setWidget(self, Widget *_wid):
+        self.wid = _wid
+
+    def widgetResize(self, newWidth, newHeight):
+        self.width = newWidth
+        self.height = newHeight
+        if self.fbo is None:
+            self.scroll_buffer = <char *>malloc(newWidth*(newHeight+1)*4)
+            self.fbo = Fbo(size=(self.width, self.height), colorfmt='rgba')
+            self.fbo.texture.flip_vertical()
+
+    def widgetMove(self, newX, newY):
+        self.left = newX
+        self.top = newY
+
+    def destroy(self):
+        free(self.scroll_buffer)
+        self.fbo = None
+
 cdef class WindowDelegate:
 
     cdef CyWindowDelegate *impl
@@ -292,6 +375,7 @@ cdef class WindowDelegate:
     cdef int needs_full_refresh
     cdef char *scroll_buffer
     cdef object fbo
+    cdef object my_widgets_list
 
     def __cinit__(self, *largs):
         self.needs_full_refresh = 1
@@ -316,6 +400,8 @@ cdef class WindowDelegate:
         self.impl.impl_onWidgetCreated = <tp_onWidgetCreated>self.impl_onWidgetCreated
         self.impl.impl_onWidgetResize = <tp_onWidgetResize>self.impl_onWidgetResize
         self.impl.impl_onWidgetMove = <tp_onWidgetMove>self.impl_onWidgetMove
+        self.impl.impl_onWidgetPaint = <tp_onWidgetPaint>self.impl_onWidgetPaint
+        self.impl.impl_onWidgetDestroyed = <tp_onWidgetDestroyed>self.impl_onWidgetDestroyed
         self.impl.impl_onPaint = <tp_onPaint>self.impl_onPaint
 
     def __init__(self, int width, int height, int usetrans):
@@ -325,6 +411,7 @@ cdef class WindowDelegate:
         self.fbo = Fbo(size=(self.width, self.height), colorfmt='rgba')
         self.fbo.texture.flip_vertical()
         self.impl.init(width, height, usetrans)
+        self.my_widgets_list = []
 
     property modifiers:
         def __get__(self):
@@ -431,17 +518,70 @@ cdef class WindowDelegate:
                                    Rect initialRect):
         self.onCreatedWindow()
 
+    cdef int getMyWidgetPos(self, int _id):
+        count = 0
+        for myWidget in self.my_widgets_list:
+            if myWidget.get_id == _id:
+                return count
+            count+=1
+        return -1
+
     cdef void impl_onWidgetCreated(self, Window *win, Widget *newWidget,
                                    int zIndex):
-        self.onWidgetCreated()
+        _id = newWidget.getId()
+        if win.getId() == _id :
+            return
+        m = My_Widget()
+        m.widgetCreated()
+        m.setWidget(newWidget)
+        self.my_widgets_list.append(m)
+        self.onWidgetCreated(_id)
+
+    cdef void impl_onWidgetDestroyed(self, Window *win, Widget *wid):
+        _id = wid.getId()
+        if win.getId() == _id:
+            return
+        self.onWidgetDestroyed(_id)
+        pos  = self.getMyWidgetPos(_id)
+        m = self.my_widgets_list[pos]
+        self.my_widgets_list.pop(pos)
+        m.destroy()
 
     cdef void impl_onWidgetResize(self, Window *win, Widget *wid, int newWidth,
                                   int newHeight):
-        self.onWidgetResize()
+        _id = wid.getId()
+        if win.getId() == _id:
+            return
+        self.my_widgets_list[self.getMyWidgetPos(_id)].widgetResize(newWidth, newHeight)
+
+        self.onWidgetResize(_id, (newWidth, newHeight))
 
     cdef void impl_onWidgetMove(self, Window *win, Widget *wid, int newX,
                                 int newY):
-        self.onWidgetMove()
+        _id = wid.getId()
+        if win.getId() == _id:
+            return
+        self.my_widgets_list[self.getMyWidgetPos(_id)].widgetMove(newX, newY)
+
+        self.onWidgetMove(_id, (newX, newY))
+
+    cdef void impl_onWidgetPaint (self, Window *wini, Widget *wid, unsigned char *bitmap_in, Rect
+                           &bitmap_rect, size_t num_copy_rects, Rect
+                           *copy_rects, int dx, int dy, Rect &scroll_rect):
+        _id = wid.getId()
+        if wini.getId() == _id:
+            return
+        cdef Rect _bitmap_rect = bitmap_rect
+        cdef Rect _scroll_rect = scroll_rect
+
+        my_widget = self.my_widgets_list[self.getMyWidgetPos(_id)]
+
+        mapOnPaintToTexture(
+            wini, bitmap_in, _bitmap_rect, num_copy_rects, copy_rects,
+            dx, dy, _scroll_rect,
+            my_widget.fbo, my_widget.width, my_widget.height,
+            1, my_widget.scroll_buffer)
+        self.onWidgetPaint(_id, my_widget.fbo.texture)
 
     cdef void impl_onPaint(self, Window *wini, unsigned char *bitmap_in, Rect
                            &bitmap_rect, size_t num_copy_rects, Rect
@@ -529,6 +669,7 @@ cdef class WindowDelegate:
     def navigateTo(self, bytes url):
         self.impl.getWindow().navigateTo(url, len(url))
 
+
     def resize(self, int width, int height):
         cdef char *tmp = <char *>realloc(self.scroll_buffer, width*(height+1)*4)
         if tmp == NULL:
@@ -547,11 +688,23 @@ cdef class WindowDelegate:
     def unfocus(self):
         self.impl.getWindow().unfocus()
 
+    def widget_focus(self, _id):
+        self.my_widgets_list[self.getMyWidgetPos(_id)].focus()
+
+    def widget_unfocus(self, _id):
+        self.my_widgets_list[self.getMyWidgetPos(_id)].unfocus()
+
     def mouseMoved(self, int xPos, int yPos):
         self.impl.getWindow().mouseMoved(xPos, yPos)
 
+    def widget_mouseMoved(self, _id, int xPos, int yPos):
+        self.my_widgets_list[self.getMyWidgetPos(_id)].mouseMoved(xPos, yPos)
+
     def mouseButton(self, unsigned int buttonID, int down):
         self.impl.getWindow().mouseButton(buttonID, down)
+
+    def widget_mouseButton(self, _id, unsigned int buttonID, int down):
+        self.my_widgets_list[self.getMyWidgetPos(_id)].mouseButton(buttonID, down)
 
     def mouseWheel(self, int xScroll, int yScroll):
         self.impl.getWindow().mouseWheel(xScroll, yScroll)
@@ -564,8 +717,14 @@ cdef class WindowDelegate:
             text[index] = <wchar_t><int>int(ord(c))
         self.impl.getWindow().textEvent(<const_wchar_ptr>text, len(evt))
 
+    def widget_textEvent(self, _id, evt):
+        self.my_widgets_list[self.getMyWidgetPos(_id)].textEvent( evt)
+
     def keyEvent(self, int pressed, int mods, int vk_code, int scancode):
         self.impl.getWindow().keyEvent(pressed, mods, vk_code, scancode)
+
+    def widget_keyEvent(self, _id, int pressed, int mods, int vk_code, int scancode):
+        self.my_widgets_list[self.getMyWidgetPos(_id)].keyEvent(pressed, mods, vk_code, scancode)
 
     def adjustZoom(self, int mode):
         self.impl.getWindow().adjustZoom(mode)
