@@ -40,14 +40,15 @@ kivy.require('1.0.7')
 from os import chmod
 from os.path import dirname, realpath, join
 from weakref import ref
-from kivy.logger import Logger
-from kivy.clock import Clock
-from kivy.uix.widget import Widget
-from kivy.graphics import Color, Rectangle
-from kivy.factory import Factory
 from kivy.base import EventLoop
+from kivy.clock import Clock
+from kivy.factory import Factory
+from kivy.graphics import Color, Rectangle
+from kivy.logger import Logger
+from kivy.uix.widget import Widget
+from kivy.utils import QueryDict
 from kivy.properties import StringProperty, ObjectProperty, AliasProperty, \
-    BooleanProperty, OptionProperty, ListProperty
+    BooleanProperty, OptionProperty, ListProperty, NumericProperty
 
 try:
     import _berkelium as berkelium
@@ -238,7 +239,7 @@ class Webbrowser(Widget):
             Fired when a new widget is resized
         `on_widget_move`:
             Fired when a new widget is moving
-         `on_widget_paint`:
+        `on_widget_paint`:
             Fired when the Widget texture is updated
         `on_paint`:
             Fired when the texture is updated
@@ -269,6 +270,16 @@ class Webbrowser(Widget):
         wb.url = 'http://kivy.org'
 
     :data:`url` is a :class:`~kivy.properties.StringProperty`, default to None.
+    '''
+
+    scroll_timeout = NumericProperty(200)
+    '''Wait for an amount of time in milliseconds to a second touch.
+    If 2 touches have been placed in that time, do a scroll. Otherwise, send a click.
+
+    .. versionadded:: 1.1
+
+    :data:`scroll_timeout` is a :class:`~kivy.properties.NumericProperty`,
+    default to 200.
     '''
 
     is_loading = BooleanProperty(False)
@@ -343,6 +354,7 @@ class Webbrowser(Widget):
         EventLoop.ensure_window()
         EventLoop.window.bind(on_keyboard=self.on_window_keyboard)
 
+        self._touches = []
         self._bk = _WindowDelegate(self, self.width, self.height,
                                    self.transparency)
         self.register_event_type('on_start_loading')
@@ -391,33 +403,140 @@ class Webbrowser(Widget):
         self._g_rect.texture = self._bk.texture
         self._g_rect.tex_coords = (0, 1, 1, 1, 1, 0, 0, 0)
         self._g_rect.size = w, h
+        self._g_rect.pos = self.pos
+
+    def on_pos(self, instance, value):
+        x, y = map(int, value)
+        if not hasattr(self, '_g_rect'):
+            return
+        self._g_rect.pos = self.pos
 
     def on_transparency(self, instance, value):
         self._bk.setTransparent(value)
 
+    def _get_uid(self):
+        return 'sv.%d' % id(self)
+
+    def _change_touch_mode(self, dt):
+        touches = self._touches
+        len_touches = len(touches)
+        uid = self._get_uid()
+        if len_touches == 0:
+            return
+        elif len_touches == 1:
+            # only one touch, do a click
+            touch = touches[0]
+            ud = touch.ud[uid]
+            if ud.mode == 'unknown':
+                # we can still do it.
+                touch.ud[uid].mode = 'controlled'
+                # dispatch this touch
+                touch.push()
+                touch.apply_transform_2d(self.to_widget)
+                touch.apply_transform_2d(self.to_parent)
+                self._mouse_move(touch)
+                self._bk.mouseButton(0, 1)
+                touch.pop()
+            return
+        else:
+            # if only one touch is controlled, don't do anything.
+            for touch in touches:
+                ud = touch.ud[uid]
+                if ud.mode == 'controlled':
+                    return
+            # not a single touch is controlled, good.
+            # mark 2 of them as scrolled
+            for touch in touches[:2]:
+                touch.ud[uid].mode = 'scroll'
+            return
+
     def on_touch_down(self, touch):
+        if not self.collide_point(*touch.pos):
+            return
         for child in self.children:
             if touch.x >= child.x and touch.x <= (child.x + child.width) and touch.y >= child.y and touch.y <= (child.y + child.height):
                 child.on_touch_down( touch)
                 return
+        touch.grab(self)
         self.focus()
-        self._mouse_move(touch)
-        self._bk.mouseButton(0, 1)
+        uid = self._get_uid()
+        touch.ud[uid] = QueryDict(mode='unknown')
+        self._touches.append(touch)
+        if self.scroll_timeout == 0:
+            touch.ud[uid].mode = 'controlled'
+            self._mouse_move(touch)
+            self._bk.mouseButton(0, 1)
+        else:
+            Clock.schedule_once(self._change_touch_mode, self.scroll_timeout / 1000.)
+        return True
 
     def on_touch_move(self, touch):
+        if touch.grab_current is not self:
+            return
         for child in self.children:
             if touch.x >= child.x and touch.x <= (child.x + child.width) and touch.y >= child.y and touch.y <= (child.y + child.height):
                 child.on_touch_move(touch)
                 return
-        self._mouse_move(touch)
+        touches = self._touches
+        len_touches = len(touches)
+        uid = self._get_uid()
+        if len_touches == 0:
+            assert('this cannot happen?!!')
+        elif len_touches == 1:
+            touch = touches[0]
+            ud = touch.ud[uid]
+            if ud.mode == 'controlled':
+                self._mouse_move(touch)
+        else:
+            # take only the first 2 touches
+            touch1, touch2 = touches[:2]
+            if touch1.ud[uid].mode != 'scroll':
+                return
+            if touch2.ud[uid].mode != 'scroll':
+                return
+            # calculate the initial position from the 2 touches
+            touch1, touch2 = touches[:2]
+            dx = touch2.dx / 2. + touch1.dx / 2.
+            dy = touch2.dy / 2. + touch1.dy / 2.
+            # do the scrolling on the page
+            self._bk.mouseWheel(dx, -dy)
+            # cancel the current dx/dy
+            touch1.dx = touch1.dy = touch2.dx = touch2.dy = 0
+
+        return True
 
     def on_touch_up(self, touch):
         for child in self.children:
             if touch.x >= child.x and touch.x <= (child.x + child.width) and touch.y >= child.y and touch.y <= (child.y + child.height):
                 child.on_touch_up(touch)
                 return
-        self._mouse_move(touch)
-        self._bk.mouseButton(0, 0)
+        if touch.grab_current is not self:
+            return
+        uid = self._get_uid()
+        mode = touch.ud[uid].mode
+
+        ignore = False
+        for item in self._touches:
+            if item is touch:
+                continue
+            if item.ud[uid].mode != 'unknown':
+                ignore = True
+
+        # if we must not ignore this touch...
+        if ignore is False:
+            # ok, we must not ignore it, so dispatch the first move down
+            if mode == 'unknown':
+                self._mouse_move(touch)
+                self._bk.mouseButton(0, 1)
+                mode = 'controlled'
+            # dispatch the up
+            if mode == 'controlled':
+                self._mouse_move(touch)
+                self._bk.mouseButton(0, 0)
+
+        touch.ungrab(touch)
+        self._touches.remove(touch)
+        return True
 
     def _mouse_move(self, touch):
         x = touch.x - self.x

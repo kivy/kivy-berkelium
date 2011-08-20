@@ -86,7 +86,6 @@ cdef extern from "berkelium/Widget.hpp":
         _Rect getRect()
         void setPos(int x, int y)
 
-
 cdef extern from "berkelium_wrapper.h":
     cdef cppclass Rect:
         int mLeft
@@ -151,7 +150,7 @@ cdef extern from "berkelium_wrapper.h":
         tp_onWidgetMove				impl_onWidgetMove
         tp_onWidgetPaint			impl_onWidgetPaint
         tp_onWidgetDestroyed			impl_onWidgetDestroyed
-        tp_onPaint				impl_onPaint
+        tp_onPaint                  impl_onPaint
 
 
 def init(bytes berkelium_path):
@@ -173,7 +172,6 @@ def set_debug(activate):
 cdef GL_BGRA = 0x80E1
 cdef int mapOnPaintToTexture(
     Window *wini,
-    #object wini,
     unsigned char* bitmap_in, Rect& bitmap_rect,
     size_t num_copy_rects, Rect *copy_rects,
     int dx, int dy,
@@ -375,7 +373,6 @@ cdef class WindowDelegate:
     cdef int needs_full_refresh
     cdef char *scroll_buffer
     cdef object fbo
-    cdef object my_widgets_list
 
     def __cinit__(self, *largs):
         self.needs_full_refresh = 1
@@ -553,7 +550,6 @@ cdef class WindowDelegate:
         if win.getId() == _id:
             return
         self.my_widgets_list[self.getMyWidgetPos(_id)].widgetResize(newWidth, newHeight)
-
         self.onWidgetResize(_id, (newWidth, newHeight))
 
     cdef void impl_onWidgetMove(self, Window *win, Widget *wid, int newX,
@@ -562,7 +558,6 @@ cdef class WindowDelegate:
         if win.getId() == _id:
             return
         self.my_widgets_list[self.getMyWidgetPos(_id)].widgetMove(newX, newY)
-
         self.onWidgetMove(_id, (newX, newY))
 
     cdef void impl_onWidgetPaint (self, Window *wini, Widget *wid, unsigned char *bitmap_in, Rect
@@ -573,9 +568,7 @@ cdef class WindowDelegate:
             return
         cdef Rect _bitmap_rect = bitmap_rect
         cdef Rect _scroll_rect = scroll_rect
-
         my_widget = self.my_widgets_list[self.getMyWidgetPos(_id)]
-
         mapOnPaintToTexture(
             wini, bitmap_in, _bitmap_rect, num_copy_rects, copy_rects,
             dx, dy, _scroll_rect,
@@ -668,7 +661,6 @@ cdef class WindowDelegate:
 
     def navigateTo(self, bytes url):
         self.impl.getWindow().navigateTo(url, len(url))
-
 
     def resize(self, int width, int height):
         cdef char *tmp = <char *>realloc(self.scroll_buffer, width*(height+1)*4)

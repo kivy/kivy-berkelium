@@ -115,7 +115,7 @@ public:
 	tp_onWidgetMove				impl_onWidgetMove;
 	tp_onWidgetPaint			impl_onWidgetPaint;
 	tp_onWidgetDestroyed			impl_onWidgetDestroyed;
-	tp_onPaint				impl_onPaint;
+	tp_onPaint					impl_onPaint;
 #if 0
 	tp_onShowContextMenu		impl_onShowContextMenu;
 	tp_onJavascriptCallback		impl_onJavascriptCallback;
@@ -264,7 +264,7 @@ public:
 			return;
 		this->impl_onWidgetMove(this->obj, win, wid, newX, newY);
 	}
-	
+
 	void onWidgetPaint(Window *wini, Widget *wid, const unsigned char *bitmap_in, const Rect &bitmap_rect, size_t num_copy_rects, const Rect *copy_rects, int dx, int dy, const Rect &scroll_rect) {
 		if ( this->impl_onWidgetPaint == NULL )
 			return;
