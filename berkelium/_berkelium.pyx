@@ -171,7 +171,7 @@ def set_debug(activate):
 
 cdef GL_BGRA = 0x80E1
 cdef int mapOnPaintToTexture(
-    Window *wini,
+    object window_or_widget,
     unsigned char* bitmap_in, Rect& bitmap_rect,
     size_t num_copy_rects, Rect *copy_rects,
     int dx, int dy,
@@ -207,6 +207,13 @@ cdef int mapOnPaintToTexture(
             GL_BGRA, GL_UNSIGNED_BYTE, py_bytes)
         return 1
 
+    if window_or_widget == 'widget':
+        py_bytes = PyString_FromStringAndSize(<char *>bitmap_in, bitmap_rect.width() * bitmap_rect.height() * kBytesPerPixel)
+        glTexSubImage2D(GL_TEXTURE_2D, 0,
+                copy_rects[0].left(), copy_rects[0].top(),
+                bitmap_rect.width(), bitmap_rect.height(), GL_BGRA, GL_UNSIGNED_BYTE, py_bytes)
+        glBindTexture(GL_TEXTURE_2D, 0)
+        return 0
 
     # Now, we first handle scrolling. We need to do this first since it
     # requires shifting existing data, some of which will be overwritten by
@@ -371,6 +378,7 @@ cdef class WindowDelegate:
     cdef int width
     cdef int height
     cdef int needs_full_refresh
+    cdef int widget_needs_full_refresh
     cdef char *scroll_buffer
     cdef object fbo
 
@@ -550,6 +558,7 @@ cdef class WindowDelegate:
         if win.getId() == _id:
             return
         self.my_widgets_list[self.getMyWidgetPos(_id)].widgetResize(newWidth, newHeight)
+        self.widget_needs_full_refresh = 1
         self.onWidgetResize(_id, (newWidth, newHeight))
 
     cdef void impl_onWidgetMove(self, Window *win, Widget *wid, int newX,
@@ -569,11 +578,13 @@ cdef class WindowDelegate:
         cdef Rect _bitmap_rect = bitmap_rect
         cdef Rect _scroll_rect = scroll_rect
         my_widget = self.my_widgets_list[self.getMyWidgetPos(_id)]
-        mapOnPaintToTexture(
-            wini, bitmap_in, _bitmap_rect, num_copy_rects, copy_rects,
+        cdef int updated = mapOnPaintToTexture(
+            'widget', bitmap_in, _bitmap_rect, num_copy_rects, copy_rects,
             dx, dy, _scroll_rect,
             my_widget.fbo, my_widget.width, my_widget.height,
-            1, my_widget.scroll_buffer)
+            self.widget_needs_full_refresh, my_widget.scroll_buffer)
+        if updated:
+            self.widget_needs_full_refresh = 0
         self.onWidgetPaint(_id, my_widget.fbo.texture)
 
     cdef void impl_onPaint(self, Window *wini, unsigned char *bitmap_in, Rect
@@ -582,7 +593,7 @@ cdef class WindowDelegate:
         cdef Rect _bitmap_rect = bitmap_rect
         cdef Rect _scroll_rect = scroll_rect
         cdef int updated = mapOnPaintToTexture(
-            wini, bitmap_in, _bitmap_rect, num_copy_rects, copy_rects,
+            'wini', bitmap_in, _bitmap_rect, num_copy_rects, copy_rects,
             dx, dy, _scroll_rect,
             self.fbo, self.width, self.height, self.needs_full_refresh, self.scroll_buffer)
         if updated:
