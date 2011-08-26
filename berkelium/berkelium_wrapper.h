@@ -28,6 +28,8 @@ typedef void (*tp_onCreatedWindow)(PyObject *obj, Window *win, Window *newWindow
 typedef void (*tp_onWidgetCreated)(PyObject *obj, Window *win, Widget *newWidget, int zIndex);
 typedef void (*tp_onWidgetResize)(PyObject *obj, Window *win, Widget *wid, int newWidth, int newHeight);
 typedef void (*tp_onWidgetMove)(PyObject *obj, Window *win, Widget *wid, int newX, int newY);
+typedef void (*tp_onWidgetPaint)(PyObject *obj, Window *wini, Widget *wid, const unsigned char *bitmap_in, const Rect &bitmap_rect, size_t num_copy_rects, const Rect *copy_rects, int dx, int dy, const Rect &scroll_rect);
+typedef void (*tp_onWidgetDestroyed)(PyObject *obj, Window *win, Widget *wid);
 typedef void (*tp_onPaint)(PyObject *obj, Window *wini, const unsigned char *bitmap_in, const Rect &bitmap_rect, size_t num_copy_rects, const Rect *copy_rects, int dx, int dy, const Rect &scroll_rect);
 
 #if 0
@@ -59,6 +61,8 @@ public:
 		this->impl_onWidgetCreated = NULL;
 		this->impl_onWidgetResize = NULL;
 		this->impl_onWidgetMove = NULL;
+		this->impl_onWidgetPaint = NULL;
+		this->impl_onWidgetDestroyed = NULL;
 		this->impl_onPaint = NULL;
 #if 0
 		this->impl_onShowContextMenu = NULL;
@@ -109,6 +113,8 @@ public:
 	tp_onWidgetCreated			impl_onWidgetCreated;
 	tp_onWidgetResize			impl_onWidgetResize;
 	tp_onWidgetMove				impl_onWidgetMove;
+	tp_onWidgetPaint			impl_onWidgetPaint;
+	tp_onWidgetDestroyed			impl_onWidgetDestroyed;
 	tp_onPaint					impl_onPaint;
 #if 0
 	tp_onShowContextMenu		impl_onShowContextMenu;
@@ -257,6 +263,18 @@ public:
 		if ( this->impl_onWidgetMove == NULL )
 			return;
 		this->impl_onWidgetMove(this->obj, win, wid, newX, newY);
+	}
+
+	void onWidgetPaint(Window *wini, Widget *wid, const unsigned char *bitmap_in, const Rect &bitmap_rect, size_t num_copy_rects, const Rect *copy_rects, int dx, int dy, const Rect &scroll_rect) {
+		if ( this->impl_onWidgetPaint == NULL )
+			return;
+		this->impl_onWidgetPaint(this->obj, wini, wid, bitmap_in, bitmap_rect, num_copy_rects, copy_rects, dx, dy, scroll_rect);
+	}
+	
+	void onWidgetDestroyed(Window *win, Widget *wid) {
+		if (this->impl_onWidgetDestroyed == NULL)
+			return;
+		this->impl_onWidgetDestroyed(this->obj, win, wid);
 	}
 
 	void onPaint(Window *wini, const unsigned char *bitmap_in, const Rect &bitmap_rect, size_t num_copy_rects, const Rect *copy_rects, int dx, int dy, const Rect &scroll_rect) {

@@ -178,20 +178,30 @@ class _WindowDelegate(berkelium.WindowDelegate):
             print 'Wb(%x).onCreatedWindow()' % id(self)
         self.impl.dispatch('on_created_window')
 
-    def onWidgetCreated(self):
+    def onWidgetCreated(self, _id):
         if self.debug:
             print 'Wb(%x).onWidgetCreated()' % id(self)
-        self.impl.dispatch('on_widget_created')
+        self.impl.dispatch('on_widget_created', _id)
 
-    def onWidgetResize(self):
+    def onWidgetDestroyed(self, _id):
+        if self.debug:
+            print 'Wb(%x).onWidgetDestroyed()' % id(self)
+        self.impl.dispatch('on_widget_destroyed', _id)
+
+    def onWidgetResize(self, _id, size):
         if self.debug:
             print 'Wb(%x).onWidgetResize()' % id(self)
-        self.impl.dispatch('on_widget_resize')
+        self.impl.dispatch('on_widget_resize', _id, size)
 
-    def onWidgetMove(self):
+    def onWidgetMove(self, _id, pos):
         if self.debug:
             print 'Wb(%x).onWidgetMove()' % id(self)
-        self.impl.dispatch('on_widget_move')
+        self.impl.dispatch('on_widget_move', _id, pos)
+
+    def onWidgetPaint(self, _id, texture):
+        if self.debug:
+            print 'Wb(%x).onWidgetPaint()' % id(self)
+        self.impl.dispatch('on_widget_paint', _id, texture)
 
     def onPaint(self):
         if self.debug:
@@ -223,10 +233,14 @@ class Webbrowser(Widget):
             Fired when a new window is created
         `on_widget_created`:
             Fired when a new widget is created
+        `on_widget_Destroyed`:
+            Fired when a widget is destroyed
         `on_widget_resize`:
             Fired when a new widget is resized
         `on_widget_move`:
             Fired when a new widget is moving
+        `on_widget_paint`:
+            Fired when the Widget texture is updated
         `on_paint`:
             Fired when the texture is updated
     '''
@@ -353,8 +367,10 @@ class Webbrowser(Widget):
         self.register_event_type('on_navigation_requested')
         self.register_event_type('on_created_window')
         self.register_event_type('on_widget_created')
+        self.register_event_type('on_widget_destroyed')
         self.register_event_type('on_widget_resize')
         self.register_event_type('on_widget_move')
+        self.register_event_type('on_widget_paint')
         self.register_event_type('on_paint')
         super(Webbrowser, self).__init__(**kwargs)
         if self.url is not None:
@@ -437,6 +453,10 @@ class Webbrowser(Widget):
     def on_touch_down(self, touch):
         if not self.collide_point(*touch.pos):
             return
+        for child in self.children:
+            if touch.x >= child.x and touch.x <= (child.x + child.width) and touch.y >= child.y and touch.y <= (child.y + child.height):
+                child.on_touch_down( touch)
+                return
         touch.grab(self)
         self.focus()
         uid = self._get_uid()
@@ -453,6 +473,10 @@ class Webbrowser(Widget):
     def on_touch_move(self, touch):
         if touch.grab_current is not self:
             return
+        for child in self.children:
+            if touch.x >= child.x and touch.x <= (child.x + child.width) and touch.y >= child.y and touch.y <= (child.y + child.height):
+                child.on_touch_move(touch)
+                return
         touches = self._touches
         len_touches = len(touches)
         uid = self._get_uid()
@@ -482,6 +506,10 @@ class Webbrowser(Widget):
         return True
 
     def on_touch_up(self, touch):
+        for child in self.children:
+            if touch.x >= child.x and touch.x <= (child.x + child.width) and touch.y >= child.y and touch.y <= (child.y + child.height):
+                child.on_touch_up(touch)
+                return
         if touch.grab_current is not self:
             return
         uid = self._get_uid()
@@ -642,17 +670,111 @@ class Webbrowser(Widget):
     def on_created_window(self):
         pass
 
-    def on_widget_created(self):
-        pass
+    def on_widget_created(self, _id):
+        w = WebbrowserChildWidget()
+        self.add_widget(w)
+        w._id = _id
 
-    def on_widget_resize(self):
-        pass
+    def on_widget_destroyed(self, _id):
+        for child in self.children:
+            if child._id == _id:
+                self.remove_widget(child)
 
-    def on_widget_move(self):
-        pass
+    def on_widget_resize(self, _id, size):
+        for child in self.children:
+            if child._id == _id:
+                child.size = size
+
+    def on_widget_move(self, _id, pos):
+        for child in self.children:
+            if child._id == _id:
+                child.pos = pos
+                child.y = self.height - (child.y + child.height)
+
+    def on_widget_paint(self, _id, texture):
+        for child in self.children:
+            if child._id == _id:
+                child.on_widget_paint(texture)
 
     def on_paint(self):
         self.canvas.ask_update()
+
+
+class WebbrowserChildWidget(Widget):
+    '''WebbrowserWidget class. See module documentation for more information.
+
+    :Events:
+
+         `on_widget_paint`:
+            Fired when the Widget texture is updated
+    '''
+
+    #
+    # Privates
+    #
+    
+    def __init__(self, **kwargs):
+
+        # Before doing anything, ensure the windows exist.
+        EventLoop.ensure_window()
+        EventLoop.window.bind(on_keyboard=self.on_widget_keyboard)
+        super(WebbrowserChildWidget, self).__init__(**kwargs)
+        self._id = 0
+
+    def on_widget_keyboard(self, instance, key, scancode, text, modifiers):
+        # handle first special keys
+        if key in map(ord, ('\b', '\r', '\n', ' ')) or \
+            ord('a') >= key <= ord('z') or \
+            ord('A') >= key <= ord('Z'):
+            vk_code = ord(chr(key).lower())
+            vwmods = 0
+            for modifier in modifiers:
+                vwmods |= self.parent._bk.modifiers.get(modifier, 0)
+            self.parent._bk.widget_keyEvent(self._id, 1, vwmods, vk_code, 0)
+
+        if text is not None:
+            self.parent._bk.widget_textEvent(self._id, text)
+
+    def on_touch_down(self, touch):
+        self.focus()
+        self._mouse_move(touch)
+        self.parent._bk.widget_mouseButton(self._id, 0, 1)
+
+    def on_touch_move(self, touch):
+        self._mouse_move(touch)
+
+    def on_touch_up(self, touch):
+        self._mouse_move(touch)
+        self.parent._bk.widget_mouseButton(self._id, 0, 0)
+
+    def _mouse_move(self, touch):
+        x = touch.x - self.x
+        y = self.height - (touch.y - self.y)
+        self.parent._bk.widget_mouseMoved(self._id, x, y)
+
+    #
+    # Public methods
+    #
+
+    def focus(self):
+        '''Focus the window
+        '''
+        self._have_focus = 1
+        self.parent._bk.widget_focus(self._id)
+
+    def unfocus(self):
+        '''Unfocus the window
+        '''
+        self.parent._bk.widget_unfocus(self._id)
+        self._have_focus = 0
+
+    def on_widget_paint(self, texture):
+        with self.canvas:
+            self._g_color = Color(1, 1, 1)
+            self._g_rect = Rectangle(texture = texture, size=self.size, pos = self.pos)
+            self._g_rect.tex_coords = (0, 1, 1, 1, 1, 0, 0, 0)
+        self.canvas.ask_update()
+
 
 Factory.register('Webbrowser', cls=Webbrowser)
 
