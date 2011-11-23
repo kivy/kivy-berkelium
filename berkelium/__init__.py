@@ -347,6 +347,18 @@ class Webbrowser(Widget):
         updated. Use self.texture.size instead.
     '''
 
+    #AW
+    last_console_message = ObjectProperty( None )
+    '''Stores the last console message sent by the webpage. A 'on_console_message' event is fired when  
+    a new console message happens. It enables the app to get backward triggers coming from the webpage.
+
+    Composed of (message, source_id, line_no)
+
+    :data:`last_console_message` is a :class:`~kivy.properties.ObjectProperty`, default to
+    None.
+    '''
+    #end AW
+
     def __init__(self, **kwargs):
         _init_berkelium()
 
@@ -372,6 +384,7 @@ class Webbrowser(Widget):
         self.register_event_type('on_widget_move')
         self.register_event_type('on_widget_paint')
         self.register_event_type('on_paint')
+        self.register_event_type('on_console_message')#AW
         super(Webbrowser, self).__init__(**kwargs)
         if self.url is not None:
             self.open_url(self.url)
@@ -640,6 +653,13 @@ class Webbrowser(Widget):
         '''
         return self._bk.canGoForward()
 
+    #AW
+    def execute_javascript(self, string):
+        '''Pass some js code to be executed in the window
+        '''
+        return self._bk.executeJavascript(string)
+    #end AW
+
     # default handlers
     def on_start_loading(self, url):
         pass
@@ -656,8 +676,10 @@ class Webbrowser(Widget):
     def on_provisional_load_error(self, url, error_code, is_main):
         pass
 
+    #AW
     def on_console_message(self, message, source_id, line_no):
-        pass
+        self.last_console_message = (message, source_id, line_no)
+    #end AW
 
     def on_script_alert(self, message, default_value, url, flags, success):
         pass
