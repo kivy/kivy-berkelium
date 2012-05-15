@@ -2,8 +2,8 @@
 Berkelium extension demo
 ========================
 
-Check http://github.com/tito/kivy-berkelium for more information.
-You must have berkelium-1.0 extension installed before running the demo
+Check http://github.com/kivy/kivy-berkelium for more information.
+You must have berkelium-1.2 extension installed before running the demo
 
 '''
 from kivy.uix.scatter import Scatter
@@ -11,7 +11,7 @@ from kivy.uix.floatlayout import FloatLayout
 from kivy.app import App
 
 from kivy.ext import load
-berkelium = load('berkelium', (1, 1))
+berkelium = load('berkelium', (1, 2))
 
 urls = (
     'http://kivy.org',

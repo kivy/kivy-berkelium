@@ -1,4 +1,4 @@
-version=1.0
+version=1.2
 data=berkelium/data
 
 .PHONY: all clean copy build
@@ -12,7 +12,7 @@ copy:
 	cp -r ../locales $(data)
 	cp ../build/chromium/src/out/Release/libffmpegsumo.so $(data)
 	# Patches data
-	chrpath -r '$$ORIGIN' $(data)/berkelium $(data)/liblibberkelium.so
+	-chrpath -r '$$ORIGIN' $(data)/berkelium $(data)/liblibberkelium.so
 
 build:
 	# Now create package

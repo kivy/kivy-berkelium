@@ -49,7 +49,7 @@ for root, dirnames, filenames in walk(join('berkelium', 'data')):
 
 setup(
     name='berkelium',
-    version='1.1',
+    version='1.2',
     author='Mathieu Virbel',
     author_email='mat@kivy.org',
     url='http://txzone.net/',

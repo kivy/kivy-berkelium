@@ -9,10 +9,8 @@ more about it at http://berkelium.org/
 About berkelium
 ---------------
 
-Berkelium is actually patched to be able to load his binary from another
-directory than the current executable in memory (aka Python.)
-The patch is available at
-https://github.com/tito/berkelium/commit/c407a023f386e05fc873113e65935e2497e0980e
+Berkelium is now used without any patch.
+https://github.com/sirikata/berkelium/tree/
 
 Usage of Webbrowser
 -------------------
@@ -349,7 +347,7 @@ class Webbrowser(Widget):
 
     #AW
     last_console_message = ObjectProperty( None )
-    '''Stores the last console message sent by the webpage. A 'on_console_message' event is fired when  
+    '''Stores the last console message sent by the webpage. A 'on_console_message' event is fired when
     a new console message happens. It enables the app to get backward triggers coming from the webpage.
 
     Composed of (message, source_id, line_no)
@@ -734,7 +732,7 @@ class WebbrowserChildWidget(Widget):
     #
     # Privates
     #
-    
+
     def __init__(self, **kwargs):
 
         # Before doing anything, ensure the windows exist.

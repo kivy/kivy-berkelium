@@ -1,4 +1,3 @@
-#
 # Wrapper to berkelium. All the internal work is done inside berkelium, except
 # the rendering. He's changed to match our Kivy graphics class, and OpenGL ES
 # 2.0 requirement.
@@ -29,7 +28,7 @@ cdef extern from "berkelium/WeakString.hpp":
     cdef void *berkelium_filestring_point_to "Berkelium::FileString::point_to"(char *, int)
 
 cdef extern from "berkelium/Berkelium.hpp":
-    cdef void berkelium_init "Berkelium::initEx"(void *, char *)
+    cdef bool berkelium_init "Berkelium::init"(void *, void *, unsigned int, char **)
     cdef void berkelium_destroy "Berkelium::destroy"()
     cdef void berkelium_update "Berkelium::update"()
 
@@ -154,8 +153,10 @@ cdef extern from "berkelium_wrapper.h":
 
 
 def init(bytes berkelium_path):
-    berkelium_init(berkelium_filestring_point_to(
-        berkelium_path, len(berkelium_path)), <char *>berkelium_path)
+    berkelium_init(
+        berkelium_filestring_point_to(berkelium_path, len(berkelium_path)),
+        berkelium_filestring_point_to(berkelium_path, len(berkelium_path)),
+        0, NULL)
 
 def destroy():
     berkelium_destroy()
@@ -488,12 +489,12 @@ cdef class WindowDelegate:
                                          &cancelDefaultAction):
         cdef py_url = PyString_FromStringAndSize(newURL, newURL_length)
         cdef py_referrer = PyString_FromStringAndSize(referrer, referrer_length)
-        cdef int default_action = int(not ret)
         ret = self.onNavigationRequested(py_url, py_referrer, isNewWindow)
+        cdef int default_action = int(not ret)
         try:
-            print 'cancel default action', ret
+            #print 'cancel default action', ret
             cancelDefaultAction = default_action
-            print 'cancel default action OK', ret
+            #print 'cancel default action OK', ret
         except:
             pass
 
