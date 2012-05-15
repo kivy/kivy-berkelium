@@ -37,9 +37,9 @@ How to recompile
 .. note::
     This method have been tested only on Linux (Ubuntu 11.10 and 12.04) 64bits.
 
-#. sudo apt-get install chrpath libcurl4-nss-dev libgtk2-dev libgconf2-dev libgnome-keyring-dev dbus-glib-1-dev flex bison libjpeg62-dev
-#. sudo apt-get install binutils-gold chrpath
-#. git clone git://github.com/kivy/berkelium
+#. sudo apt-get install binutils-gold chrpath git-core cython python-dev
+#. git clone git://github.com/sirikata/berkelium
+#. cd berkelium
 #. git checkout chromium11
 #. util/build-chromium.sh --deps
 #. cmake . -DCMAKE_BUILD_TYPE=Release
