@@ -5,8 +5,8 @@
 
 from libcpp cimport bool
 from array import array
-from kivy.graphics.opengl import *
-from kivy.graphics.fbo import Fbo
+from kivy.graphics.c_opengl cimport *
+from kivy.graphics.fbo cimport Fbo
 
 cdef extern from "stdlib.h":
     ctypedef unsigned long size_t
@@ -177,14 +177,15 @@ cdef int mapOnPaintToTexture(
     size_t num_copy_rects, Rect *copy_rects,
     int dx, int dy,
     Rect& scroll_rect,
-    object fbo,
+    Fbo fbo,
     unsigned int dest_texture_width,
     unsigned int dest_texture_height,
     int ignore_partial,
     char* scroll_buffer):
 
     cdef object tex = fbo.texture
-    cdef object tmp
+    cdef bytes tmp
+    cdef char *ctmp
 
     tex.bind()
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1)
@@ -202,17 +203,17 @@ cdef int mapOnPaintToTexture(
             bitmap_rect.bottom() != dest_texture_height:
             return 0
 
-        py_bytes = PyString_FromStringAndSize(
-            <char *>bitmap_in, dest_texture_width * dest_texture_height * kBytesPerPixel)
+        #py_bytes = PyString_FromStringAndSize(
+        #    <char *>bitmap_in, dest_texture_width * dest_texture_height * kBytesPerPixel)
         glTexImage2D(GL_TEXTURE_2D, 0, kBytesPerPixel, dest_texture_width, dest_texture_height, 0,
-            GL_BGRA, GL_UNSIGNED_BYTE, py_bytes)
+            GL_BGRA, GL_UNSIGNED_BYTE, bitmap_in)
         return 1
 
     if window_or_widget == 'widget':
-        py_bytes = PyString_FromStringAndSize(<char *>bitmap_in, bitmap_rect.width() * bitmap_rect.height() * kBytesPerPixel)
+        #py_bytes = PyString_FromStringAndSize(<char *>bitmap_in, bitmap_rect.width() * bitmap_rect.height() * kBytesPerPixel)
         glTexSubImage2D(GL_TEXTURE_2D, 0,
                 copy_rects[0].left(), copy_rects[0].top(),
-                bitmap_rect.width(), bitmap_rect.height(), GL_BGRA, GL_UNSIGNED_BYTE, py_bytes)
+                bitmap_rect.width(), bitmap_rect.height(), GL_BGRA, GL_UNSIGNED_BYTE, bitmap_in)
         glBindTexture(GL_TEXTURE_2D, 0)
         return 0
 
@@ -254,7 +255,9 @@ cdef int mapOnPaintToTexture(
 
             # Copy the data out of the texture, using the fbo
             fbo.bind()
-            tmp = glReadPixels(0, 0, fbo.size[0], fbo.size[1], GL_RGBA, GL_UNSIGNED_BYTE)
+            tmp = <bytes>' ' * 4 * fbo._width * fbo._height
+            ctmp = <char *>tmp
+            glReadPixels(0, 0, fbo._width, fbo._height, GL_RGBA, GL_UNSIGNED_BYTE, ctmp)
             fbo.release()
             tex.bind()
 
@@ -278,12 +281,12 @@ cdef int mapOnPaintToTexture(
 
             # And finally, we push it back into the texture in the right
             # location
-            py_bytes = PyString_FromStringAndSize(outputBuffer,
-                shared_rect.width() * shared_rect.height() * kBytesPerPixel)
+            #py_bytes = PyString_FromStringAndSize(outputBuffer,
+            #    shared_rect.width() * shared_rect.height() * kBytesPerPixel)
             glTexSubImage2D(GL_TEXTURE_2D, 0,
                 shared_rect.left(), shared_rect.top(),
                 shared_rect.width(), shared_rect.height(),
-                GL_BGRA, GL_UNSIGNED_BYTE, py_bytes)
+                GL_BGRA, GL_UNSIGNED_BYTE, outputBuffer)
 
     cdef int i, top, left
     cdef object py_scroll_buffer
@@ -300,10 +303,10 @@ cdef int mapOnPaintToTexture(
 
         # Finally, we perform the main update, just copying the rect that is
         # marked as dirty but not from scrolled data.
-        py_bytes = PyString_FromStringAndSize(scroll_buffer, wid * hig * kBytesPerPixel)
+        #py_bytes = PyString_FromStringAndSize(scroll_buffer, wid * hig * kBytesPerPixel)
         glTexSubImage2D(GL_TEXTURE_2D, 0,
                         copy_rects[i].left(), copy_rects[i].top(),
-                        wid, hig, GL_BGRA, GL_UNSIGNED_BYTE, py_bytes)
+                        wid, hig, GL_BGRA, GL_UNSIGNED_BYTE, scroll_buffer)
 
     glBindTexture(GL_TEXTURE_2D, 0)
 

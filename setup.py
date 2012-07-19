@@ -6,6 +6,12 @@ from distutils.extension import Extension
 from subprocess import call
 from Cython.Distutils import build_ext
 
+try:
+    import kivy
+    kivy_dir = kivy.__path__[0]
+except ImportError:
+    print 'You must have Kivy development version installed in your PYTHONPATH'
+    raise
 
 class PackageBuild(Command):
     description = 'Create Extension Package'
@@ -32,9 +38,9 @@ cmdclass = {
 ext = Extension(
     'berkelium._berkelium',
     ['berkelium/_berkelium.pyx'],
-    include_dirs=['../include'],
+    include_dirs=['../include', join(kivy_dir, 'graphics')],
     library_dirs=['berkelium/data'],
-    libraries=['libberkelium'],
+    libraries=['libberkelium', 'GL'],
     extra_link_args=['-Wl,-rpath=$ORIGIN/data'],
     language='c++',
 )
