@@ -3,11 +3,15 @@
 # 2.0 requirement.
 #
 
+from __future__ import print_function
+
 from libcpp cimport bool
 from array import array
 from kivy.graphics.opengl import *
 from kivy.graphics.fbo import Fbo
 
+
+import time
 cdef extern from "stdlib.h":
     ctypedef unsigned long size_t
     void free(void *ptr)
@@ -171,6 +175,8 @@ def set_debug(activate):
     _debug = int(activate)
 
 cdef GL_BGRA = 0x80E1
+
+
 cdef int mapOnPaintToTexture(
     object window_or_widget,
     unsigned char* bitmap_in, Rect& bitmap_rect,
@@ -185,9 +191,10 @@ cdef int mapOnPaintToTexture(
 
     cdef object tex = fbo.texture
     cdef object tmp
-
+    
     tex.bind()
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1)
+    glPixelStorei(GL_PACK_ALIGNMENT, 1) 
 
     cdef int kBytesPerPixel = 4
     cdef object py_bytes
@@ -226,64 +233,25 @@ cdef int mapOnPaintToTexture(
         # scroll_rect contains the Rect we need to move
         # First we figure out where the the data is moved to by translating it
         scrolled_rect = scroll_rect.translate(-dx, -dy)
+
         # Next we figure out where they intersect, giving the scrolled
         # region
         scrolled_shared_rect = scroll_rect.intersect(scrolled_rect)
+      
         # Only do scrolling if they have non-zero intersection
         if scrolled_shared_rect.width() > 0 and scrolled_shared_rect.height() > 0:
-            # And the scroll is performed by moving shared_rect by (dx,dy)
+            ## And the scroll is performed by moving shared_rect by (dx,dy)
             shared_rect = scrolled_shared_rect.translate(dx, dy)
-            wid = scrolled_shared_rect.width()
-            hig = scrolled_shared_rect.height()
-            inc = 1
-            outputBuffer = scroll_buffer
-            # source data is offset by 1 line to prevent memcpy aliasing
-            # In this case, it can happen if dy==0 and dx!=0.
-            inputBuffer = scroll_buffer+(dest_texture_width*1*kBytesPerPixel)
-            jj = 0
+
+            fbo.bind();       
             if dy > 0:
-                # Here, we need to shift the buffer around so that we start in the
-                # extra row at the end, and then copy in reverse so that we
-                # don't clobber source data before copying it.
-                outputBuffer = scroll_buffer+(
-                    (scrolled_shared_rect.top()+hig+1)*dest_texture_width
-                    - hig*wid)*kBytesPerPixel
-                inputBuffer = scroll_buffer
-                inc = -1
-                jj = hig-1
-
-            # Copy the data out of the texture, using the fbo
-            fbo.bind()
-            tmp = glReadPixels(0, 0, fbo.size[0], fbo.size[1], GL_RGBA, GL_UNSIGNED_BYTE)
+              glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 
+                  dx, dy, #xoffset, yoffset of the destination rectangle applied to the coords below
+                  0, 0,   #x, y coordinates od lower-left corner of the rectangle that is copied
+                  shared_rect.width(), shared_rect.height()); #width and height of this rectangle
+            else:
+              glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, -dx,-dy, shared_rect.width(), shared_rect.height());       
             fbo.release()
-            tex.bind()
-
-            # We swap RGBA -> BGRA, since glReadPixels dosn't support BGRA
-            a = array('b', tmp)
-            a[0::4], a[2::4] = a[2::4], a[0::4]
-            tmp = a.tostring()
-            inputBuffer = <char *>tmp
-
-            # Annoyingly, OpenGL doesn't provide convenient primitives, so
-            # we manually copy out the region to the beginning of the
-            # buffer
-            while jj < hig and jj >= 0:
-                memcpy(
-                    outputBuffer + (jj*wid) * kBytesPerPixel,
-                    inputBuffer + (
-                        (scrolled_shared_rect.top()+jj)*dest_texture_width
-                        + scrolled_shared_rect.left()) * kBytesPerPixel,
-                    wid*kBytesPerPixel)
-                jj += inc
-
-            # And finally, we push it back into the texture in the right
-            # location
-            py_bytes = PyString_FromStringAndSize(outputBuffer,
-                shared_rect.width() * shared_rect.height() * kBytesPerPixel)
-            glTexSubImage2D(GL_TEXTURE_2D, 0,
-                shared_rect.left(), shared_rect.top(),
-                shared_rect.width(), shared_rect.height(),
-                GL_BGRA, GL_UNSIGNED_BYTE, py_bytes)
 
     cdef int i, top, left
     cdef object py_scroll_buffer
@@ -306,7 +274,6 @@ cdef int mapOnPaintToTexture(
                         wid, hig, GL_BGRA, GL_UNSIGNED_BYTE, py_bytes)
 
     glBindTexture(GL_TEXTURE_2D, 0)
-
     return 1
 
 cdef class My_Widget:
