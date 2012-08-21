@@ -11,7 +11,7 @@ Notes
 -----
 
 - This extension require Kivy 1.0.7 minimum !
-- This extension is under development. It's actually working and tested
+- This extension is under development. It's currently working and tested
   only for Linux 64 bits.
 - MacOSX can't be supported at the moment, since Kivy require Python
   64bits, and Chromium can't be built under 64bits on MacOSX.
