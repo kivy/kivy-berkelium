@@ -37,6 +37,14 @@ cdef extern from "berkelium/Context.hpp":
         pass
     cdef Context *Context_create "Berkelium::Context::create"()
 
+cdef extern from "berkelium/StringUtil.hpp":
+    cdef cppclass WideString:
+        pass
+    cdef cppclass UTF8String:
+        UTF8String()
+        UTF8String point_to(char *, int)
+    cdef WideString UTF8ToWide(UTF8String)
+
 cdef extern from "berkelium/Window.hpp":
     ctypedef char* const_wchar_ptr "const wchar_t*"
     ctypedef char* wchar_t "wchar_t*"
@@ -67,6 +75,7 @@ cdef extern from "berkelium/Window.hpp":
         bool canGoBack()
         bool canGoForward()
         void setTransparent(bool istrans)
+        void executeJavascript(WideString js)
 
     cdef Window *Window_create "Berkelium::Window::create"(Context *)
 
@@ -771,6 +780,12 @@ cdef class WindowDelegate:
 
     def setTransparent(self, bool is_trans):
         self.impl.getWindow().setTransparent(is_trans)
+
+    def executeJavascript(self, js):
+        cdef char *c_js = <bytes>js
+        cdef UTF8String u1 = UTF8String().point_to(c_js, len(js))
+        cdef WideString w1 = UTF8ToWide(u1)
+        self.impl.getWindow().executeJavascript(w1)
 
     property texture:
         def __get__(self):
