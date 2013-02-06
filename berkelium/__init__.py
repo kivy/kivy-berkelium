@@ -206,6 +206,16 @@ class _WindowDelegate(berkelium.WindowDelegate):
             print 'Wb(%x).onPaint()' % id(self)
         self.impl.dispatch('on_paint')
 
+    def onJavascriptCallback(self, url, funcname):
+        if self.debug:
+            print 'Wb(%x).onJavascriptCallback()' % id(self)
+        self.impl.dispatch('on_javascript_callback', url, funcname)
+
+    def onExternalHost(self, message, origin, target):
+        if self.debug:
+            print 'Wb(%x).onExternalHost()' % id(self)
+        self.impl.dispatch('on_external_host', message, origin, target)
+
 
 class Webbrowser(Widget):
     '''Webbrowser class. See module documentation for more information.
@@ -241,6 +251,11 @@ class Webbrowser(Widget):
             Fired when the Widget texture is updated
         `on_paint`:
             Fired when the texture is updated
+        `on_javascript_callback`:
+            Fired when a proxy function has been called (via
+            :meth:`add_bind_proxy_function_on_start_loading`)
+        `on_external_host`:
+            TBD
     '''
 
     #
@@ -356,12 +371,27 @@ class Webbrowser(Widget):
     default to None.
     '''
 
+    keyboard_mode = OptionProperty('global', options=('global', 'local'))
+    '''Keyboard mode to use.
+
+    The default behavior is "global": the global keyboard is binded to the
+    berkelium window. That's mean if you have 2 Berkelium widget, keys will be
+    used by both.
+
+    The other behavior is "local": the keyboard will be requested only when a
+    input[type="text"] will be focused. You can have more than one berkelium
+    window. If you're not in the input, no keys will works.
+
+    .. warning::
+        The keyboard_mode can be set only at the __init__() time. Any further
+        changes to the property will have no impact.
+    '''
+
     def __init__(self, **kwargs):
         _init_berkelium()
 
         # Before doing anything, ensure the windows exist.
         EventLoop.ensure_window()
-        EventLoop.window.bind(on_keyboard=self.on_window_keyboard)
 
         self._touches = []
         self._bk = _WindowDelegate(self, self.width, self.height,
@@ -381,6 +411,8 @@ class Webbrowser(Widget):
         self.register_event_type('on_widget_move')
         self.register_event_type('on_widget_paint')
         self.register_event_type('on_paint')
+        self.register_event_type('on_javascript_callback')
+        self.register_event_type('on_external_host')
         super(Webbrowser, self).__init__(**kwargs)
         if self.url is not None:
             self.open_url(self.url)
@@ -390,19 +422,11 @@ class Webbrowser(Widget):
             self._g_rect.tex_coords = (0, 1, 1, 1, 1, 0, 0, 0)
         _install_berkelium_update(self)
 
-    def on_window_keyboard(self, instance, key, scancode, text, modifiers):
-        # handle first special keys
-        if key in map(ord, ('\b', '\r', '\n', ' ')) or \
-            ord('a') >= key <= ord('z') or \
-            ord('A') >= key <= ord('Z'):
-            vk_code = ord(chr(key).lower())
-            vwmods = 0
-            for modifier in modifiers:
-                vwmods |= self._bk.modifiers.get(modifier, 0)
-            self._bk.keyEvent(1, vwmods, vk_code, 0)
-
-        if text is not None:
-            self._bk.textEvent(text)
+        self._keyboard = None
+        if self.keyboard_mode == 'global':
+            EventLoop.window.bind(on_keyboard=self._on_global_keyboard)
+        else:
+            self._install_local_keyboard()
 
     def on_size(self, instance, value):
         w, h = map(int, value)
@@ -654,6 +678,29 @@ class Webbrowser(Widget):
         '''
         return self._bk.executeJavascript(string)
 
+    def bind_proxy_function(self, name, sync=False):
+        '''Bind a JS name as a function. You get the result in the
+        `on_javascript_callback`
+        '''
+        self._bk.bindProxyFunction(name, sync)
+
+    def add_bind_proxy_function_on_start_loading(self, name, sync=False):
+        '''Same as :meth:`bind_proxy_function`, except that it will be done
+        every page load
+        '''
+        self._bk.addBindProxyFunctionOnStartLoading(name, sync)
+
+    def add_eval_on_start_loading(self, script):
+        '''Add a script to eval every page
+        '''
+        self._bk.addEvalOnStartLoading(script)
+
+    def clear_start_loading(self):
+        '''Clear any previous work done via :meth:`add_eval_on_start_loading`
+        and :meth:`add_bind_proxy_function_on_start_loading`.
+        '''
+        self._bk.clearStartLoading()
+
     # default handlers
     def on_start_loading(self, url):
         pass
@@ -713,6 +760,102 @@ class Webbrowser(Widget):
     def on_paint(self):
         self.canvas.ask_update()
 
+    def on_javascript_callback(self, url, funcname):
+        pass
+
+    def on_external_host(self, message, origin, target):
+        pass
+
+
+    #
+    # Local keyboard handlers
+    #
+
+    def _install_local_keyboard(self):
+        def _on_javascript_callback(instance, url, func):
+            if func == 'bk_request_keyboard':
+                self._request_keyboard()
+                return True
+            if func == 'bk_release_keyboard':
+                self._release_keyboard()
+                return True
+        self.bind(on_javascript_callback=_on_javascript_callback)
+        self.add_bind_proxy_function_on_start_loading('bk_request_keyboard')
+        self.add_bind_proxy_function_on_start_loading('bk_release_keyboard')
+        self.add_eval_on_start_loading('''
+            var _keyboard_requested = false;
+            function _check_keyboard_needed() {
+                setTimeout('_check_keyboard_needed()', 200);
+                var obj = document.activeElement;
+                if ( !obj )
+                    return;
+                if ( 
+                    (obj.tagName == 'INPUT' && obj.type == 'text') ||
+                    (obj.tagName == 'TEXTAREA')
+                ) {
+                    if ( !_keyboard_requested ) {
+                        bk_request_keyboard();
+                        _keyboard_requested = true;
+                    }
+                    return;
+                }
+                if ( _keyboard_requested ) {
+                    bk_release_keyboard();
+                    _keyboard_requested = false;
+                }
+            }
+            _check_keyboard_needed();
+            ''')
+
+    def _request_keyboard(self):
+        self._keyboard = EventLoop.window.request_keyboard(self._on_keyboard_released, self)
+        self._keyboard.bind(on_key_down=self._on_local_keyboard)
+
+    def _release_keyboard(self):
+        if not self._keyboard:
+            return
+        self._keyboard.unbind(on_key_down=self._on_local_keyboard)
+        self._keyboard.release()
+
+    def _on_keyboard_released(self):
+        self._release_keyboard()
+
+    def _on_global_keyboard(self, instance, key, scancode, text, modifiers):
+        # handle first special keys
+        if key in map(ord, ('\b', '\r', '\n', ' ')) or \
+            ord('a') >= key <= ord('z') or \
+            ord('A') >= key <= ord('Z'):
+            vk_code = ord(chr(key).lower())
+            vwmods = 0
+            for modifier in modifiers:
+                vwmods |= self._bk.modifiers.get(modifier, 0)
+            self._bk.focus()
+            self._bk.keyEvent(1, vwmods, vk_code, 0)
+
+        if text is not None:
+            self._bk.textEvent(text)
+
+    def _on_local_keyboard(self, instance, key, text, modifiers):
+        if key[0] == 27:
+            self.unfocus()
+            self._keyboard.release()
+            return
+
+        if key[0] in map(ord, ('\b', '\r', '\n', ' ')) or \
+            ord('a') >= key <= ord('z') or \
+            ord('A') >= key <= ord('Z'):
+            vk_code = ord(chr(key[0]).lower())
+            vwmods = 0
+            for modifier in modifiers:
+                vwmods |= self._bk.modifiers.get(modifier, 0)
+            self._bk.keyEvent(1, vwmods, vk_code, 0)
+
+            # needed to make the enter key working.
+            if key[0] == 13:
+                text = '\r'
+
+        if text is not None:
+            self._bk.textEvent(text)
 
 class WebbrowserChildWidget(Widget):
     '''WebbrowserWidget class. See module documentation for more information.

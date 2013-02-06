@@ -52,6 +52,9 @@ cdef extern from "berkelium/StringUtil.hpp":
 cdef extern from "berkelium/Window.hpp":
     ctypedef char* const_wchar_ptr "const wchar_t*"
     ctypedef char* wchar_t "wchar_t*"
+    cdef cppclass ScriptVariant "Script::Variant":
+        pass
+    ctypedef ScriptVariant ScriptVariantConst "const Script::Variant"
     cdef cppclass Window "Berkelium::Window":
         #int is_crashed()
         void ShowRepostFormWarningDialog()
@@ -80,8 +83,14 @@ cdef extern from "berkelium/Window.hpp":
         bool canGoForward()
         void setTransparent(bool istrans)
         void executeJavascript(WideString js)
+        void bind(WideString lvalue, ScriptVariantConst rvalue)
+        void addBindOnStartLoading(WideString lvalue, ScriptVariantConst rvalue)
+        void addEvalOnStartLoading(WideString script)
+        void clearStartLoading()
 
     cdef Window *Window_create "Berkelium::Window::create"(Context *)
+    cdef ScriptVariant Script_Variant_bindFunction \
+        "Berkelium::Script::Variant::bindFunction" (WideString s, bool)
 
 cdef extern from "berkelium/Widget.hpp":
     ctypedef object _Rect "Rect"
@@ -136,6 +145,11 @@ cdef extern from "berkelium_wrapper.h":
     ctypedef void (*tp_onWidgetPaint)(object obj, Window *win, Widget *wid, unsigned char * bitmap_in,  Rect &bitmap_rect, size_t num_copy_rects, Rect *copy_rects, int dx,  int dy,  Rect &scroll_rect)
     ctypedef void (*tp_onWidgetDestroyed)(object obj, Window *win, Widget *wid)
     ctypedef void (*tp_onPaint)(object obj, Window *wini, unsigned char *bitmap_in, Rect &bitmap_rect, size_t num_copy_rects, Rect *copy_rects, int dx, int dy, Rect &scroll_rect)
+    ctypedef void (*tp_onJavascriptCallback)(object obj, Window *win, char *url,
+            int url_length, char *funcName, int funcName_length)
+    ctypedef void (*tp_onExternalHost)(object obj, Window *win, char *message,
+            int message_length, char *origin, int origin_length, char *target,
+            int target_length)
 
     cdef cppclass CyWindowDelegate:
         CyWindowDelegate(object obj)
@@ -161,8 +175,10 @@ cdef extern from "berkelium_wrapper.h":
         tp_onWidgetResize			impl_onWidgetResize
         tp_onWidgetMove				impl_onWidgetMove
         tp_onWidgetPaint			impl_onWidgetPaint
-        tp_onWidgetDestroyed			impl_onWidgetDestroyed
+        tp_onWidgetDestroyed		impl_onWidgetDestroyed
         tp_onPaint                  impl_onPaint
+        tp_onJavascriptCallback     impl_onJavascriptCallback
+        tp_onExternalHost           impl_onExternalHost
 
 
 def init(bytes berkelium_path):
@@ -385,6 +401,8 @@ cdef class WindowDelegate:
         self.impl.impl_onWidgetPaint = <tp_onWidgetPaint>self.impl_onWidgetPaint
         self.impl.impl_onWidgetDestroyed = <tp_onWidgetDestroyed>self.impl_onWidgetDestroyed
         self.impl.impl_onPaint = <tp_onPaint>self.impl_onPaint
+        self.impl.impl_onJavascriptCallback = <tp_onJavascriptCallback>self.impl_onJavascriptCallback
+        self.impl.impl_onExternalHost = <tp_onExternalHost>self.impl_onExternalHost
 
     def __init__(self, int width, int height, int usetrans):
         self.scroll_buffer = <char *>malloc(width*(height+1)*4)
@@ -577,6 +595,14 @@ cdef class WindowDelegate:
             self.needs_full_refresh = 0
         self.onPaint()
 
+    cdef void impl_onJavascriptCallback(self, Window *win, char *url, int
+            url_length, char *funcName, int funcName_length):
+        self.onJavascriptCallback(url[:url_length], funcName[:funcName_length])
+
+    cdef void impl_onExternalHost(self, Window *win, char *message, int message_length, char *origin, int origin_length, char *target, int target_length):
+        self.onExternalHost(message[:message_length], origin[:origin_length],
+                target[:target_length])
+
     #
     # Default Python handlers
     # XXX This could be removed, since they are all already defined in the
@@ -641,6 +667,12 @@ cdef class WindowDelegate:
         pass
 
     def onPaint(self):
+        pass
+
+    def onJavascriptCallback(self, url, func):
+        pass
+
+    def onExternalHost(self, message, origin, target):
         pass
 
     #
@@ -749,10 +781,30 @@ cdef class WindowDelegate:
         self.impl.getWindow().setTransparent(is_trans)
 
     def executeJavascript(self, js):
-        cdef char *c_js = <bytes>js
-        cdef UTF8String u1 = UTF8String().point_to(c_js, len(js))
-        cdef WideString w1 = UTF8ToWide(u1)
+        cdef WideString w1 = self.createWideString(<bytes>js)
         self.impl.getWindow().executeJavascript(w1)
+
+    def bindProxyFunction(self, name, sync=False):
+        cdef WideString w1 = self.createWideString(<bytes>name)
+        cdef ScriptVariant s1 = Script_Variant_bindFunction(w1, sync)
+        self.impl.getWindow().bind(w1, s1)
+
+    def addBindProxyFunctionOnStartLoading(self, name, sync=False):
+        cdef WideString w1 = self.createWideString(<bytes>name)
+        cdef ScriptVariant s1 = Script_Variant_bindFunction(w1, sync)
+        self.impl.getWindow().addBindOnStartLoading(w1, s1)
+
+    def addEvalOnStartLoading(self, script):
+        cdef WideString w1 = self.createWideString(<bytes>script)
+        self.impl.getWindow().addEvalOnStartLoading(w1)
+
+    def clearStartLoading(self):
+        self.impl.getWindow().clearStartLoading()
+
+    cdef WideString createWideString(self, bytes s):
+        cdef UTF8String u1 = UTF8String().point_to(s, len(s))
+        cdef WideString w1 = UTF8ToWide(u1)
+        return w1
 
     property texture:
         def __get__(self):

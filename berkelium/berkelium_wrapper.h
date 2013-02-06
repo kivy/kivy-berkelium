@@ -31,11 +31,11 @@ typedef void (*tp_onWidgetMove)(PyObject *obj, Window *win, Widget *wid, int new
 typedef void (*tp_onWidgetPaint)(PyObject *obj, Window *wini, Widget *wid, const unsigned char *bitmap_in, const Rect &bitmap_rect, size_t num_copy_rects, const Rect *copy_rects, int dx, int dy, const Rect &scroll_rect);
 typedef void (*tp_onWidgetDestroyed)(PyObject *obj, Window *win, Widget *wid);
 typedef void (*tp_onPaint)(PyObject *obj, Window *wini, const unsigned char *bitmap_in, const Rect &bitmap_rect, size_t num_copy_rects, const Rect *copy_rects, int dx, int dy, const Rect &scroll_rect);
+typedef void (*tp_onJavascriptCallback)(PyObject *obj, Window *win, char *url, int url_length, char *funcName, int funcName_length); // FIXME support, Script::Variant *args, size_t numArgs);
+typedef void (*tp_onExternalHost)(PyObject *obj, Window *win, char *message, int message_length, char *origin, int origin_length, char *target, int target_length);
 
 #if 0
-typedef void (*tp_onExternalHost)(PyObject *obj,  Berkelium::Window *win, char *message, int message_length, char *origin, int origin_length, char *target, int target_length);
 typedef void (*tp_onShowContextMenu)(PyObject *obj, Window *win, const ContextMenuEventArgs& args);
-typedef void (*tp_onJavascriptCallback)(PyObject *obj, Window *win, void* replyMsg, char *url, int url_length, char *funcName, int funcName_length, Script::Variant *args, size_t numArgs);
 typedef void (*tp_onRunFileChooser)(PyObject *obj, Window *win, int mode, char *title, int title_length, FileString defaultFile);
 #endif
 
@@ -64,11 +64,11 @@ public:
 		this->impl_onWidgetPaint = NULL;
 		this->impl_onWidgetDestroyed = NULL;
 		this->impl_onPaint = NULL;
+		this->impl_onJavascriptCallback = NULL;
+		this->impl_onExternalHost = NULL;
 #if 0
 		this->impl_onShowContextMenu = NULL;
-		this->impl_onJavascriptCallback = NULL;
 		this->impl_onRunFileChooser = NULL;
-		this->impl_onExternalHost = NULL;
 #endif
 
 		this->obj = obj;
@@ -85,6 +85,7 @@ public:
         delete context;
 
         this->bk_window->setDelegate(this);
+		printf("setDelegate %p\n", this);
         this->bk_window->resize(_w, _h);
         this->bk_window->setTransparent(_usetrans);
 	}
@@ -114,13 +115,13 @@ public:
 	tp_onWidgetResize			impl_onWidgetResize;
 	tp_onWidgetMove				impl_onWidgetMove;
 	tp_onWidgetPaint			impl_onWidgetPaint;
-	tp_onWidgetDestroyed			impl_onWidgetDestroyed;
+	tp_onWidgetDestroyed		impl_onWidgetDestroyed;
 	tp_onPaint					impl_onPaint;
+	tp_onJavascriptCallback		impl_onJavascriptCallback;
+	tp_onExternalHost			impl_onExternalHost;
 #if 0
 	tp_onShowContextMenu		impl_onShowContextMenu;
-	tp_onJavascriptCallback		impl_onJavascriptCallback;
 	tp_onRunFileChooser			impl_onRunFileChooser;
-	tp_onExternalHost			impl_onExternalHost;
 #endif
 
 	void onAddressBarChanged(Window *win, URLString newURL) {
@@ -283,24 +284,30 @@ public:
 		this->impl_onPaint(this->obj, wini, bitmap_in, bitmap_rect, num_copy_rects, copy_rects, dx, dy, scroll_rect);
 	}
 
-#if 0
-	void onExternalHost( Berkelium::Window *win, char *message, int message_length, char *origin, int origin_length, char *target, int target_length) {
-		if ( this->impl_onExternalHost == NULL )
+	void onJavascriptCallback(Window *win, void* replyMsg, URLString url, WideString funcName, Script::Variant *args, size_t numArgs) {
+		if ( this->impl_onJavascriptCallback == NULL )
 			return;
-		this->impl_onExternalHost(this->obj, win, message, message_length,
-				origin, origin_length, target, target_length);
+		UTF8String funcNameUTF8 = WideToUTF8(funcName);
+		this->impl_onJavascriptCallback(this->obj, win,
+				(char *)url.get<std::string>().c_str(), url.length(),
+				(char *)funcNameUTF8.get<std::string>().c_str(), funcName.length());
 	}
 
+	void onExternalHost(Window *win, WideString message, URLString origin, URLString target) {
+		if ( this->impl_onExternalHost == NULL )
+			return;
+		UTF8String messageUTF8 = WideToUTF8(message);
+		this->impl_onExternalHost(this->obj, win,
+				(char *)messageUTF8.get<std::string>().c_str(), messageUTF8.length(),
+				(char *)origin.get<std::string>().c_str(), origin.length(),
+				(char *)target.get<std::string>().c_str(), target.length());
+	}
+
+#if 0
 	void onShowContextMenu(Window *win, const ContextMenuEventArgs& args) {
 		if ( this->impl_onShowContextMenu == NULL )
 			return;
 		this->impl_onShowContextMenu(this->obj, win, args);
-	}
-
-	void onJavascriptCallback(Window *win, void* replyMsg, char *url, int url_length, char *funcName, int funcName_length, Script::Variant *args, size_t numArgs) {
-		if ( this->impl_onJavascriptCallback == NULL )
-			return;
-		this->impl_onJavascriptCallback(this->obj, win);
 	}
 
 	void onRunFileChooser(Window *win, int mode, char *title, int title_length, FileString defaultFile) {
