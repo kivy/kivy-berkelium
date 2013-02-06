@@ -379,7 +379,7 @@ class Webbrowser(Widget):
     used by both.
 
     The other behavior is "local": the keyboard will be requested only when a
-    input[type="text"] will be focused. You can have more than one berkelium
+    input[type="text|password"] will be focused. You can have more than one berkelium
     window. If you're not in the input, no keys will works.
 
     .. warning::
@@ -794,7 +794,7 @@ class Webbrowser(Widget):
                 if ( !obj )
                     return;
                 if ( 
-                    (obj.tagName == 'INPUT' && obj.type == 'text') ||
+                    (obj.tagName == 'INPUT' && (obj.type == 'text' || obj.type == 'password')) ||
                     (obj.tagName == 'TEXTAREA')
                 ) {
                     if ( !_keyboard_requested ) {
