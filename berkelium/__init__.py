@@ -779,7 +779,11 @@ class Webbrowser(Widget):
             if func == 'bk_release_keyboard':
                 self._release_keyboard()
                 return True
-        self.bind(on_javascript_callback=_on_javascript_callback)
+        def _on_is_loading(instance, value):
+            if value:
+                self._release_keyboard()
+        self.bind(on_javascript_callback=_on_javascript_callback,
+                is_loading=_on_is_loading)
         self.add_bind_proxy_function_on_start_loading('bk_request_keyboard')
         self.add_bind_proxy_function_on_start_loading('bk_release_keyboard')
         self.add_eval_on_start_loading('''
