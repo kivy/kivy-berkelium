@@ -787,9 +787,14 @@ class Webbrowser(Widget):
         self.add_bind_proxy_function_on_start_loading('bk_request_keyboard')
         self.add_bind_proxy_function_on_start_loading('bk_release_keyboard')
         self.add_eval_on_start_loading('''
-            var _keyboard_requested = false;
-            function _check_keyboard_needed() {
-                setTimeout('_check_keyboard_needed()', 200);
+            var __bk_keyboard_requested = false;
+            function __bk_reset() {
+                if ( document.activeElement )
+                    document.activeElement.blur();
+                __bk_keyboard_requested = false;
+            }
+            function __bk_check_keyboard_needed() {
+                setTimeout('__bk_check_keyboard_needed()', 200);
                 var obj = document.activeElement;
                 if ( !obj )
                     return;
@@ -797,18 +802,18 @@ class Webbrowser(Widget):
                     (obj.tagName == 'INPUT' && (obj.type == 'text' || obj.type == 'password')) ||
                     (obj.tagName == 'TEXTAREA')
                 ) {
-                    if ( !_keyboard_requested ) {
+                    if ( !__bk_keyboard_requested ) {
                         bk_request_keyboard();
-                        _keyboard_requested = true;
+                        __bk_keyboard_requested = true;
                     }
                     return;
                 }
-                if ( _keyboard_requested ) {
+                if ( __bk_keyboard_requested ) {
                     bk_release_keyboard();
-                    _keyboard_requested = false;
+                    __bk_keyboard_requested = false;
                 }
             }
-            _check_keyboard_needed();
+            __bk_check_keyboard_needed();
             ''')
 
     def _request_keyboard(self):
@@ -841,8 +846,8 @@ class Webbrowser(Widget):
 
     def _on_local_keyboard(self, instance, key, text, modifiers):
         if key[0] == 27:
-            self.unfocus()
             self._keyboard.release()
+            self.execute_javascript('__bk_reset()')
             return
 
         if key[0] in map(ord, ('\b', '\r', '\n', ' ')) or \
