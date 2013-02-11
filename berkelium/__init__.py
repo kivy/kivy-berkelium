@@ -860,8 +860,8 @@ class Webbrowser(Widget):
             self._bk.keyEvent(1, vwmods, vk_code, 0)
 
             # needed to make the enter key working.
-            if key[0] == 13:
-                text = '\r'
+            if key[0] in (8, 10, 13):
+                text = chr(key[0])
 
         if text is not None:
             self._bk.textEvent(text)
