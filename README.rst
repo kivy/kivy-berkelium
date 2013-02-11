@@ -41,12 +41,13 @@ How to recompile
 #. git clone git://github.com/sirikata/berkelium
 #. cd berkelium
 #. git checkout chromium11
-#. util/build-chromium.sh --deps
+#. util/build-chromium.sh --deps --force
 #. cmake . -DCMAKE_BUILD_TYPE=Release
+#. git submodule update --init --recursive
 #. make
 #. git clone git://github.com/kivy/kivy-berkelium
 #. cd kivy-berkelium
 #. make
-#. mv dist/berkelium-1.2.linux-x86_64.zip dist/berkelium-1.2.linux-x86_64.kex
+#. mv dist/berkelium-1.3.linux-x86_64.zip dist/berkelium-1.3.linux-x86_64.kex
 
-And you can copy the berkelium-1.2.linux-x86_64.kex into your ~/.kivy/extensions
+And you can copy the berkelium-1.3.linux-x86_64.kex into your ~/.kivy/extensions
